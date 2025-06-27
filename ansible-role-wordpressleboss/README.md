@@ -1,38 +1,71 @@
-Role Name
-=========
+===============================
+DEPLOIEMENT WORDPRESS AVEC ANSIBLE de Hadama TOURE
+===============================
 
-A brief description of the role goes here.
+Description :
+-------------
+Ce projet automatise le déploiement d’un site WordPress complet sur une ou plusieurs machines Linux (clients) via Ansible. Il installe et configure Apache, PHP, MySQL et WordPress à distance.
 
-Requirements
-------------
+Structure du projet :
+---------------------
+- ansible-role-wordpressleboss/  --> Rôle personnalisé pour WordPress
+  - tasks/
+  - templates/
+  - files/
+- tests/
+  - inventory                   --> Fichier d'inventaire Ansible
+- playbook.yml                  --> Playbook principal
+- README.txt                    --> Ce fichier
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+Technologies utilisées :
+------------------------
+- Ansible
+- Ubuntu Server 24.04
+- Apache2
+- PHP
+- MySQL ou MariaDB
+- WordPress
+- WSL2 ou VirtualBox avec port forwarding (ex: 8082 → client1:80)
 
-Role Variables
---------------
-
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
-
-Dependencies
-------------
-
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
-
-Example Playbook
-----------------
-
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
-
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
-
-License
--------
-
-BSD
-
-Author Information
+Lancer le projet :
 ------------------
+1. Cloner le projet :
+   git clone https://gitlab.com/ton-utilisateur/ton-projet.git
+   cd ton-projet
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+2. Exécuter le playbook :
+   ansible-playbook -i tests/inventory playbook.yml
+
+   (Ajouter --ask-become-pass si nécessaire)
+
+Accès aux clients WordPress :
+-----------------------------
+Après le déploiement, accéder à l’interface WordPress via votre navigateur :
+
+- Client1 : http://localhost:8082
+- Client2 : http://localhost:8083
+- Client3 : à configurer
+- Client4 : à configurer
+
+Fonctionnement :
+----------------
+- Le rôle installe Apache, PHP et MySQL
+- WordPress est téléchargé et placé dans /var/www/html/
+- Le service Apache est redémarré automatiquement
+- La page d’installation WordPress est alors accessible sur le port redirigé
+
+Dépannage :
+-----------
+- Apache ne démarre pas ? → systemctl status apache2
+- Page blanche ? → vérifier si PHP est activé (apache2ctl -M | grep php)
+- Port déjà utilisé ? → ss -tuln | grep :80
+
+Auteur :
+--------
+- Nom : Ton Nom Prénom
+- Formation : M1 MSI TDP 2025 - Sup de Vinci
+- Contact : hdmunkey@supdevinci-edu.fr
+
+Licence :
+---------
+Projet libre sous licence MIT

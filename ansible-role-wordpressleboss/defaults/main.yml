@@ -1,3 +1,20 @@
-#SPDX-License-Identifier: MIT-0
+
 ---
-# defaults file for ansible-role-wordpressleboss
+# WordPress configuration
+wordpress_url: "https://wordpress.org/latest.zip"
+wordpress_db_name: "wordpress"
+wordpress_db_user: "example"
+wordpress_db_password: "examplePW"
+
+# MySQL configuration
+mysql_root_password: "examplerootPW"
+
+# Apache configuration
+apache_docroot: "/var/www/html"
+
+# Environment configuration
+# Set to true if running in container environment
+wordpress_container_mode: false
+
+# WordPress database host
+wordpress_db_host: "localhost"

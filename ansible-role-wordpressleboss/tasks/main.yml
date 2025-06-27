@@ -1,3 +1,135 @@
 #SPDX-License-Identifier: MIT-0
----
-# tasks file for ansible-role-wordpressleboss
+
+- name: assurez-vous que MariaDB est en cours d'exécution (et activez-la au démarrage)
+  service: name=mariadb state=started enabled=yes
+
+- name: Installer Apache et PHP (Ubuntu)
+  apt:
+    name:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      - unzip
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Installer MariaDB (Ubuntu)
+  apt:
+    name: mariadb-server
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Installer Apache et PHP (RedHat)
+  dnf:
+    name:
+      - httpd
+      - php
+      - php-mysqlnd
+      - unzip
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Installer MariaDB (RedHat)
+  dnf:
+    name: mariadb-server
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Démarrer et activer MariaDB
+  service:
+    name: "{{ 'mariadb' if ansible_os_family == 'Debian' else 'mysqld' }}"
+    state: started
+    enabled: yes
+
+
+- name: Démarrer et activer Apache
+  service:
+    name: "{{ 'apache2' if ansible_os_family == 'Debian' else 'httpd' }}"
+    state: started
+    enabled: yes
+
+- name: Activer le module rewrite d'Apache (Debian/Ubuntu)
+  apache2_module:
+    name: rewrite
+    state: present
+  when: ansible_os_family == "Debian"
+  notify: restart apache
+
+- name: Installer dépendance Python MySQL sur Debian/Ubuntu
+  apt:
+    name: python3-pymysql
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Installer dépendance Python MySQL sur RedHat
+  dnf:
+    name: python3-PyMySQL
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Créer un répertoire pour télécharger WordPress
+  file:
+    path: /opt/source/wordpress
+    state: directory
+    mode: '0755'
+
+
+- name: Créer la base de données WordPress
+  community.mysql.mysql_db:
+    name: "{{ wordpress_db_name }}"
+    state: present
+    login_user: root
+    login_password: "{{ wordpress_db_root_password }}"
+
+- name: Create WordPress database user
+  mysql_user:
+    name: "{{ wordpress_db_user }}"
+    password: "{{ wordpress_db_password }}"
+    priv: "{{ wordpress_db_name }}.*:ALL"
+    host: "localhost"
+    state: present
+    login_user: root
+    login_password: "{{ wordpress_db_root_password }}"
+  become: true
+
+
+
+- name: Télécharger WordPress
+  get_url:
+    url: "{{ wordpress_url }}"
+    dest: /tmp/wordpress.zip
+
+- name: Créer répertoire temporaire pour WordPress
+  file:
+    path: /tmp/wordpress_temp
+    state: directory
+
+- name: Décompresser WordPress dans répertoire temporaire
+  unarchive:
+    src: /tmp/wordpress.zip
+    dest: /tmp/wordpress_temp
+    remote_src: yes
+
+- name: Copier WordPress vers le répertoire web
+  copy:
+    src: /tmp/wordpress_temp/wordpress/
+    dest: "{{ apache_docroot }}/"
+    remote_src: yes
+  ignore_errors: yes  # si certains fichiers existent déjà
+
+
+- name: Nettoyer le répertoire temporaire
+  file:
+    path: /tmp/wordpress_temp
+    state: absent
+
+- name: Changer propriétaire WordPress
+  file:
+    path: "{{ apache_docroot }}"
+    recurse: yes
+    owner: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+    group: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+
