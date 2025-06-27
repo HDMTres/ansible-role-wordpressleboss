@@ -31,6 +31,7 @@ Technologies utilisées :
 INSTALLATION ET DÉPLOIEMENT :
 =============================
 
+<<<<<<< HEAD
 1. Exécuter le playbook :
 ---------------------------
 ```bash
