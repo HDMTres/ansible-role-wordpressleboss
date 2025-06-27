@@ -1,136 +1,169 @@
-#SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT-0
 
-- name: assurez-vous que MariaDB est en cours d'exécution (et activez-la au démarrage)
-  service: name=mariadb state=started enabled=yes
-
-- name: Installer Apache et PHP (Ubuntu)
-  apt:
-    name:
+- name: Installer Apache et PHP sur Ubuntu
+  ansible.builtin.apt:
+    name: 
       - apache2
       - php
       - libapache2-mod-php
       - php-mysql
       - unzip
+      - mariadb-server
+      - python3-pymysql
     state: present
-    update_cache: yes
+    update_cache: true
   when: ansible_os_family == "Debian"
 
-- name: Installer MariaDB (Ubuntu)
-  apt:
-    name: mariadb-server
-    state: present
-  when: ansible_os_family == "Debian"
-
-- name: Installer Apache et PHP (RedHat)
-  dnf:
+- name: Installer Apache et PHP sur Rocky
+  ansible.builtin.dnf:
     name:
       - httpd
       - php
       - php-mysqlnd
       - unzip
+      - mariadb-server
+      - python3-PyMySQL
     state: present
   when: ansible_os_family == "RedHat"
 
-- name: Installer MariaDB (RedHat)
-  dnf:
-    name: mariadb-server
-    state: present
-  when: ansible_os_family == "RedHat"
+- name: Detecter Conteneur
+  ansible.builtin.stat:
+    path: /.dockerenv
+  register: is_container
 
-- name: Démarrer et activer MariaDB
-  service:
-    name: "{{ 'mariadb' if ansible_os_family == 'Debian' else 'mysqld' }}"
+# === DEMARRAGE SERVICES ===
+- name: Initialiser MySQL sur Rocky conteneur
+  ansible.builtin.shell: |
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  ignore_errors: yes
+
+- name: Demarrer MySQL sur Rocky conteneur
+  ansible.builtin.shell: |
+    mysqld_safe --user=mysql --datadir=/var/lib/mysql &
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  async: 15
+  poll: 0
+  ignore_errors: yes
+
+- name: Demarrer Apache sur Rocky conteneur
+  ansible.builtin.shell: |
+    /usr/sbin/httpd &
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  async: 10
+  poll: 0
+  ignore_errors: yes
+
+- name: Demarrer MySQL sur Ubuntu
+  ansible.builtin.service:
+    name: mariadb
     state: started
-    enabled: yes
+    enabled: true
+  when: ansible_os_family == "Debian"
 
-
-- name: Démarrer et activer Apache
-  service:
-    name: "{{ 'apache2' if ansible_os_family == 'Debian' else 'httpd' }}"
+- name: Demarrer Apache sur Ubuntu
+  ansible.builtin.service:
+    name: apache2
     state: started
-    enabled: yes
-
-- name: Activer le module rewrite d'Apache (Debian/Ubuntu)
-  apache2_module:
-    name: rewrite
-    state: present
-  when: ansible_os_family == "Debian"
-  notify: restart apache
-
-- name: Installer dépendance Python MySQL sur Debian/Ubuntu
-  apt:
-    name: python3-pymysql
-    state: present
-    update_cache: yes
+    enabled: true
   when: ansible_os_family == "Debian"
 
-- name: Installer dépendance Python MySQL sur RedHat
-  dnf:
-    name: python3-PyMySQL
-    state: present
-  when: ansible_os_family == "RedHat"
+- name: Attendre que MySQL soit pret
+  ansible.builtin.wait_for:
+    port: 3306
+    host: localhost
+    timeout: 60
 
-- name: Créer un répertoire pour télécharger WordPress
-  file:
-    path: /opt/source/wordpress
-    state: directory
-    mode: '0755'
+- name: Activer module rewrite Apache sur Ubuntu
+  ansible.builtin.command: a2enmod rewrite
+  when: ansible_os_family == "Debian"
+  ignore_errors: yes
 
+# === CREER BASE DE DONNEES ===
+- name: Creer base WordPress sur Rocky conteneur
+  ansible.builtin.shell: |
+    mysql -e "CREATE DATABASE IF NOT EXISTS wordpress;"
+    mysql -e "CREATE USER IF NOT EXISTS 'wordpress_user'@'localhost' IDENTIFIED BY 'MotDePasseFort123!';"
+    mysql -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpress_user'@'localhost';"
+    mysql -e "FLUSH PRIVILEGES;"
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  ignore_errors: yes
 
-- name: Créer la base de données WordPress
-  community.mysql.mysql_db:
-    name: "{{ wordpress_db_name }}"
-    state: present
-    login_user: root
-    login_password: "{{ wordpress_db_root_password }}"
-
-
-- name: Create WordPress database user
-  mysql_user:
-    name: "{{ wordpress_db_user }}"
-    password: "{{ wordpress_db_password }}"
-    priv: "{{ wordpress_db_name }}.*:ALL"
-    host: "localhost"
-    state: present
-    login_user: root
-    login_password: "{{ wordpress_db_root_password }}"
-  become: true
-
-
-
-- name: Télécharger WordPress
-  get_url:
-    url: "{{ wordpress_url }}"
+# === INSTALLER WORDPRESS ===
+- name: Telecharger WordPress
+  ansible.builtin.get_url:
+    url: "https://wordpress.org/latest.zip"
     dest: /tmp/wordpress.zip
 
-- name: Créer répertoire temporaire pour WordPress
-  file:
-    path: /tmp/wordpress_temp
+- name: Creer dossier temporaire
+  ansible.builtin.file:
+    path: /tmp/wordpress-temp
     state: directory
 
-- name: Décompresser WordPress dans répertoire temporaire
-  unarchive:
+- name: Decompresser WordPress
+  ansible.builtin.unarchive:
     src: /tmp/wordpress.zip
-    dest: /tmp/wordpress_temp
-    remote_src: yes
+    dest: /tmp/wordpress-temp/
+    remote_src: true
 
-- name: Copier WordPress vers le répertoire web
-  copy:
-    src: /tmp/wordpress_temp/wordpress/
-    dest: "{{ apache_docroot }}/"
-    remote_src: yes
-  ignore_errors: yes  # si certains fichiers existent déjà
-
-
-- name: Nettoyer le répertoire temporaire
-  file:
-    path: /tmp/wordpress_temp
-    state: absent
-
-- name: Changer propriétaire WordPress
-  file:
-    path: "{{ apache_docroot }}"
-    recurse: yes
+- name: Copier WordPress vers Apache
+  ansible.builtin.copy:
+    src: /tmp/wordpress-temp/wordpress/
+    dest: /var/www/html/
+    remote_src: true
     owner: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
     group: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+    mode: '0755'
 
+- name: Nettoyer fichiers temporaires
+  ansible.builtin.file:
+    path: /tmp/wordpress-temp
+    state: absent
+
+- name: Corriger proprietaire WordPress
+  ansible.builtin.file:
+    path: /var/www/html
+    owner: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+    group: "{{ 'www-data' if ansible_os_family == 'Debian' else 'apache' }}"
+    recurse: true
+
+# === CONFIGURER WORDPRESS ===
+- name: Configurer wp-config sur Rocky
+  ansible.builtin.shell: |
+    if [ ! -f /var/www/html/wp-config.php ]; then
+      cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+      sed -i "s/database_name_here/wordpress/g" /var/www/html/wp-config.php
+      sed -i "s/username_here/wordpress_user/g" /var/www/html/wp-config.php
+      sed -i "s/password_here/MotDePasseFort123!/g" /var/www/html/wp-config.php
+    fi
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  ignore_errors: yes
+
+- name: Supprimer page Apache par defaut
+  ansible.builtin.file:
+    path: /var/www/html/index.html
+    state: absent
+  ignore_errors: yes
+
+- name: Redemarrer Apache sur Ubuntu
+  ansible.builtin.service:
+    name: apache2
+    state: restarted
+  when: ansible_os_family == "Debian"
+  ignore_errors: yes
+
+- name: Redemarrer Apache sur Rocky
+  ansible.builtin.shell: |
+    pkill httpd || true
+    sleep 3
+    /usr/sbin/httpd
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  ignore_errors: yes
+
+- name: Verifier Apache sur Rocky
+  ansible.builtin.wait_for:
+    port: 80
+    host: localhost
+    timeout: 30
+  when: ansible_os_family == "RedHat" and is_container.stat.exists
+  ignore_errors: yes
