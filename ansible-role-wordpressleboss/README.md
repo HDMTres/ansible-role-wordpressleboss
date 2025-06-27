@@ -34,7 +34,7 @@ Lancer le projet :
    cd ton-projet
 
 2. Exécuter le playbook :
-   ansible-playbook -i tests/inventory playbook.yml
+   ansible-playbook -i /root/config/evaluation/ansible-role-wordpressleboss/tests/inventory /root/config/evaluation/wordpressleboss.yaml
 
    (Ajouter --ask-become-pass si nécessaire)
 

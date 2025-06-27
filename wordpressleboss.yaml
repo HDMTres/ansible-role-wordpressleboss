@@ -1,0 +1,9 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tests/test.yml
+# This playbook is used to test the ansible-role-wordpressleboss role.
+- name: Déploiement WordPress simple
+  hosts: ubuntu
+  become: yes
+  roles:
+    - ansible-role-wordpressleboss
