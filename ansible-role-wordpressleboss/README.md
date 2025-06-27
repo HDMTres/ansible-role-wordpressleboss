@@ -30,7 +30,7 @@ Technologies utilisées :
 Lancer le projet :
 ------------------
 1. Cloner le projet :
-   git clone https://gitlab.com/ton-utilisateur/ton-projet.git
+   git clone https://github.com/HDMTres/ansible-role-wordpressleboss/tree/main/ansible-role-wordpressleboss
    cd ton-projet
 
 2. Exécuter le playbook :
@@ -44,8 +44,8 @@ Après le déploiement, accéder à l’interface WordPress via votre navigateur
 
 - Client1 : http://localhost:8082
 - Client2 : http://localhost:8083
-- Client3 : à configurer
-- Client4 : à configurer
+- Client3 : en cours
+- Client4 : en cours
 
 Fonctionnement :
 ----------------
@@ -54,17 +54,12 @@ Fonctionnement :
 - Le service Apache est redémarré automatiquement
 - La page d’installation WordPress est alors accessible sur le port redirigé
 
-Dépannage :
------------
-- Apache ne démarre pas ? → systemctl status apache2
-- Page blanche ? → vérifier si PHP est activé (apache2ctl -M | grep php)
-- Port déjà utilisé ? → ss -tuln | grep :80
 
 Auteur :
 --------
-- Nom : Ton Nom Prénom
-- Formation : M1 MSI TDP 2025 - Sup de Vinci
-- Contact : hdmunkey@supdevinci-edu.fr
+- Nom : TOURE Hadama
+- Formation : M1 MSI A TDP 2025 - Sup de Vinci
+- Contact : hadama.toure@supdevinci-edu.fr
 
 Licence :
 ---------
